@@ -1,0 +1,1975 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>B.O.T.T // TERMINAL DE ACESSO</title>
+<style>
+:root{
+  --bg:#060303;
+  --bg-panel:#150707;
+  --green-dim:#7a1414;
+  --green:#ffb020;
+  --green-bright:#ffd77a;
+  --green-glow: rgba(255,60,60,0.45);
+  --amber:#ff8c1a;
+  --red:#ff3b3b;
+  --red-glow: rgba(255,59,59,0.65);
+  --white:#fff6e0;
+  --font-term:'VT323 Fallback', 'Courier New', monospace;
+  --font-ui:'Share Tech Fallback', 'Consolas', monospace;
+}
+
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html,body{
+  margin:0; padding:0; height:100%; width:100%;
+  background:var(--bg);
+  overflow:hidden;
+  font-family:var(--font-ui), monospace;
+  color:var(--green);
+  user-select:none;
+}
+
+/* ============ CRT / SCANLINE OVERLAY ============ */
+.crt-overlay{
+  pointer-events:none;
+  position:fixed; inset:0; z-index:9999;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 1px,
+      rgba(0,0,0,0.18) 2px,
+      rgba(0,0,0,0.18) 3px
+    );
+  mix-blend-mode:multiply;
+}
+.crt-vignette{
+  pointer-events:none;
+  position:fixed; inset:0; z-index:9998;
+  background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+}
+.crt-flicker{
+  pointer-events:none;
+  position:fixed; inset:0; z-index:9997;
+  background:rgba(255,59,59,0.02);
+  animation:flicker 6s infinite;
+}
+@keyframes flicker{
+  0%,100%{opacity:1;}
+  92%{opacity:1;}
+  93%{opacity:0.85;}
+  94%{opacity:1;}
+  96%{opacity:0.9;}
+  97%{opacity:1;}
+}
+
+/* ============ BOOT SCREEN ============ */
+#boot{
+  position:fixed; inset:0; z-index:200;
+  background:var(--bg);
+  padding:28px 34px;
+  font-family:var(--font-term), monospace;
+  font-size:20px;
+  line-height:1.35;
+  color:var(--green);
+  overflow:hidden;
+  white-space:pre-wrap;
+  word-break:break-word;
+  text-shadow:0 0 6px var(--green-glow);
+}
+#boot.hidden{ display:none; }
+.boot-cursor{
+  display:inline-block;
+  width:10px; height:20px;
+  background:var(--green);
+  vertical-align:middle;
+  animation:blink 1s steps(1) infinite;
+  box-shadow:0 0 8px var(--green-glow);
+}
+@keyframes blink{ 50%{ opacity:0; } }
+
+#skip-hint{
+  position:fixed; bottom:16px; right:22px; z-index:201;
+  font-family:var(--font-ui), monospace;
+  font-size:12px; letter-spacing:1px;
+  color:var(--green-dim);
+  opacity:0.8;
+}
+
+#boot-fade{
+  position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; z-index:300;
+  transition:opacity .5s ease;
+}
+#boot-fade.on{ opacity:1; }
+
+/* ============ LOGIN SCREEN ============ */
+#login{
+  position:fixed; inset:0; z-index:150;
+  display:none;
+  align-items:center; justify-content:center;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,59,59,0.10), transparent 55%),
+    radial-gradient(circle at 75% 80%, rgba(255,59,59,0.08), transparent 50%),
+    #020403;
+  overflow:hidden;
+  opacity:0;
+  transition:opacity .8s ease;
+}
+#login.visible{ display:flex; opacity:1; }
+#login.shaking{ animation: shake 0.55s linear; }
+@keyframes shake{
+  0%{ transform:translate(0,0); }
+  10%{ transform:translate(-8px,2px); }
+  20%{ transform:translate(7px,-3px); }
+  30%{ transform:translate(-9px,1px); }
+  40%{ transform:translate(8px,3px); }
+  50%{ transform:translate(-6px,-2px); }
+  60%{ transform:translate(6px,2px); }
+  70%{ transform:translate(-4px,-1px); }
+  80%{ transform:translate(4px,2px); }
+  90%{ transform:translate(-2px,0); }
+  100%{ transform:translate(0,0); }
+}
+#login.error-flash{
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,60,60,0.25), transparent 55%),
+    radial-gradient(circle at 75% 80%, rgba(255,60,60,0.20), transparent 50%),
+    #1a0303;
+}
+.login-lines{
+  position:absolute; inset:0; pointer-events:none; opacity:0.5;
+}
+.login-lines svg{ width:100%; height:100%; }
+
+.login-panel{
+  position:relative; z-index:2;
+  display:flex; flex-direction:column; align-items:center;
+  gap:14px;
+}
+.login-avatar{
+  width:120px; height:120px;
+  background:#180808;
+  border:1px solid var(--green);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 24px rgba(255,59,59,0.35);
+}
+.login-avatar svg{ width:64px; height:64px; color:var(--green-bright); filter:drop-shadow(0 0 6px var(--green-glow)); }
+.login-username{
+  font-family:var(--font-ui), monospace;
+  font-size:15px; letter-spacing:2px;
+  color:var(--green-bright);
+  text-shadow:0 0 6px var(--green-glow);
+}
+.login-pass-row{ display:flex; gap:0; align-items:center; }
+.login-input{
+  background:#170707;
+  border:1px solid var(--green-dim);
+  color:var(--green-bright);
+  font-family:var(--font-ui), monospace;
+  font-size:13px;
+  padding:9px 12px;
+  width:220px;
+  outline:none;
+  letter-spacing:2px;
+}
+.login-input:focus{ border-color:var(--green); box-shadow:0 0 10px rgba(255,59,59,0.3); }
+.login-submit{
+  background:var(--green-dim);
+  border:1px solid var(--green);
+  color:#0c0303;
+  font-family:var(--font-ui), monospace;
+  font-size:13px;
+  padding:9px 14px;
+  cursor:pointer;
+  margin-left:6px;
+  letter-spacing:1px;
+}
+.login-submit:hover{ background:var(--green); }
+.login-error-msg{
+  min-height:16px;
+  font-size:11px;
+  color:var(--red);
+  letter-spacing:1px;
+  text-shadow:0 0 6px var(--red-glow);
+}
+
+.login-users{
+  position:absolute; left:26px; bottom:30px; z-index:3;
+  display:flex; flex-direction:column; gap:8px;
+}
+.login-user-btn{
+  display:flex; align-items:center; gap:10px;
+  background:rgba(10,36,19,0.5);
+  border:1px solid transparent;
+  padding:8px 14px 8px 8px;
+  cursor:pointer;
+  min-width:170px;
+}
+.login-user-btn:hover, .login-user-btn.active{
+  border-color:var(--green-dim);
+  background:rgba(255,59,59,0.1);
+}
+.login-user-btn .circ{
+  width:32px; height:32px; border-radius:50%;
+  background:#220a0a; border:1px solid var(--green-dim);
+  display:flex; align-items:center; justify-content:center;
+  flex:0 0 auto;
+}
+.login-user-btn .circ svg{ width:18px; height:18px; color:var(--green-bright); }
+.login-user-btn .lbl{ font-size:12px; color:var(--green-bright); letter-spacing:1px; }
+
+.login-corner{
+  position:absolute; right:20px; bottom:16px; z-index:3;
+  font-size:11px; color:var(--green-dim); letter-spacing:1px;
+}
+
+/* guest name modal */
+#guest-modal{
+  position:fixed; inset:0; z-index:400;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.6);
+}
+#guest-modal.open{ display:flex; }
+.gm-box{
+  background:var(--bg-panel);
+  border:1px solid var(--green);
+  box-shadow:0 0 26px rgba(255,59,59,0.3);
+  width:300px;
+  padding:0;
+}
+.gm-head{
+  background:linear-gradient(180deg,#220a0a,#180808);
+  border-bottom:1px solid var(--green-dim);
+  padding:8px 12px;
+  font-size:12px; letter-spacing:2px; color:var(--green-bright);
+}
+.gm-body{ padding:16px; display:flex; flex-direction:column; gap:10px; }
+.gm-body label{ font-size:11px; color:var(--green-dim); letter-spacing:1px; }
+.gm-body input{
+  background:#170707; border:1px solid var(--green-dim); color:var(--green-bright);
+  font-family:var(--font-ui), monospace; font-size:13px; padding:8px 10px; outline:none;
+}
+.gm-body input:focus{ border-color:var(--green); }
+.gm-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:4px; }
+.gm-btn{
+  background:var(--green-dim); border:1px solid var(--green); color:#0c0303;
+  font-family:var(--font-ui), monospace; font-size:12px; padding:7px 12px; cursor:pointer;
+}
+.gm-btn:hover{ background:var(--green); }
+.gm-btn.ghost{ background:transparent; color:var(--green-bright); }
+.gm-btn.ghost:hover{ background:rgba(255,59,59,0.1); }
+
+#core-pass-modal{
+  position:fixed; inset:0; z-index:400;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.65);
+}
+#core-pass-modal.open{ display:flex; }
+#core-pass-box.shaking{ animation: shake 0.55s linear; }
+
+/* ============ DESKTOP ============ */
+#desktop{
+  position:fixed; inset:0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(120,20,20,0.35) 0%, rgba(6,3,3,0) 60%),
+    var(--bg);
+  opacity:0;
+  transition:opacity 1.2s ease;
+  display:none;
+}
+#desktop.visible{ opacity:1; display:block; }
+
+#globe-wrap{
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none;
+  opacity:0.5;
+}
+#globe-wrap svg{ width:min(70vh,620px); height:min(70vh,620px); }
+
+.icon{
+  position:absolute;
+  width:78px;
+  display:flex; flex-direction:column; align-items:center;
+  gap:6px;
+  cursor:pointer;
+  padding:6px 4px;
+  border:1px solid transparent;
+  border-radius:2px;
+  z-index:10;
+  touch-action:none;
+}
+.icon:hover, .icon:focus-visible, .icon.selected{
+  background:rgba(255,59,59,0.08);
+  border:1px solid var(--green-dim);
+  outline:none;
+}
+.icon.dragging{ opacity:0.6; z-index:400; }
+.icon .glyph{
+  width:38px; height:38px;
+  display:flex; align-items:center; justify-content:center;
+  filter:drop-shadow(0 0 5px var(--green-glow));
+  pointer-events:none;
+}
+.icon .glyph svg{ width:100%; height:100%; }
+.icon .label{
+  font-family:var(--font-ui), monospace;
+  font-size:11px;
+  color:var(--green-bright);
+  text-align:center;
+  line-height:1.2;
+  text-shadow:0 0 4px var(--green-glow);
+  letter-spacing:0.3px;
+  pointer-events:none;
+}
+.icon.trash-hover{ background:rgba(255,77,77,0.15); border-color:var(--red); }
+
+#icon-trash.trash-active{
+  background:rgba(255,77,77,0.12); border-color:var(--red);
+}
+
+/* ============ WINDOWS ============ */
+.win{
+  position:absolute;
+  min-width:260px;
+  background:var(--bg-panel);
+  border:1px solid var(--green);
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(255,59,59,0.25), 0 8px 30px rgba(0,0,0,0.6);
+  display:flex; flex-direction:column;
+  z-index:20;
+}
+.win.focused{ box-shadow:0 0 0 1px #000, 0 0 32px rgba(255,59,59,0.5), 0 8px 30px rgba(0,0,0,0.7); }
+.win-titlebar{
+  background:linear-gradient(180deg, #220a0a, #180808);
+  border-bottom:1px solid var(--green-dim);
+  padding:5px 8px;
+  display:flex; align-items:center; justify-content:space-between;
+  cursor:grab;
+  font-family:var(--font-ui), monospace;
+  font-size:12px;
+  letter-spacing:1px;
+  color:var(--green-bright);
+  text-shadow:0 0 4px var(--green-glow);
+}
+.win-titlebar:active{ cursor:grabbing; }
+.win-title{ display:flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.win-title .dot{
+  width:7px; height:7px; border-radius:50%; background:var(--green);
+  box-shadow:0 0 6px var(--green-glow); flex:0 0 auto;
+}
+.win-controls{ display:flex; gap:4px; }
+.win-btn{
+  width:18px; height:16px;
+  background:#220a0a;
+  border:1px solid var(--green-dim);
+  color:var(--green-bright);
+  font-size:10px; line-height:1;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+}
+.win-btn:hover{ background:var(--green-dim); color:#150707; }
+.win-btn.close:hover{ background:var(--red); border-color:var(--red); color:#1a0000; }
+
+.win-body{
+  flex:1;
+  overflow:auto;
+  padding:14px 16px;
+  font-family:var(--font-term), monospace;
+  font-size:16px;
+  line-height:1.4;
+  color:var(--green);
+  background:
+    repeating-linear-gradient(to bottom, rgba(255,59,59,0.02) 0px, rgba(255,59,59,0.02) 1px, transparent 2px, transparent 3px);
+}
+.win-body.no-pad{ padding:0; }
+.win-body::-webkit-scrollbar{ width:10px; }
+.win-body::-webkit-scrollbar-track{ background:#170707; }
+.win-body::-webkit-scrollbar-thumb{ background:var(--green-dim); }
+
+.win-resize{
+  position:absolute; right:0; bottom:0; width:16px; height:16px;
+  cursor:nwse-resize;
+  background:linear-gradient(135deg, transparent 50%, var(--green-dim) 50%);
+}
+
+/* ---- explorer (windows-style) ---- */
+.explorer-wrap{ display:flex; flex-direction:column; height:100%; font-family:var(--font-ui), monospace; }
+.explorer-menu{
+  display:flex; gap:14px; padding:4px 10px;
+  border-bottom:1px solid var(--green-dim);
+  font-size:11px; color:var(--green-dim); letter-spacing:1px;
+}
+.explorer-main{ flex:1; display:flex; overflow:hidden; }
+.explorer-tree{
+  width:170px; flex:0 0 auto;
+  border-right:1px solid var(--green-dim);
+  overflow:auto; padding:8px 6px;
+  font-size:12px;
+}
+.tree-node{ padding:3px 4px; cursor:pointer; display:flex; align-items:center; gap:5px; white-space:nowrap; color:var(--green); }
+.tree-node.child{ padding-left:18px; }
+.tree-node:hover{ background:rgba(255,59,59,0.1); }
+.tree-node.active{ background:rgba(255,59,59,0.18); color:var(--green-bright); }
+.tree-node svg{ width:13px; height:13px; flex:0 0 auto; }
+.explorer-content{ flex:1; overflow:auto; padding:14px; }
+.explorer-status{
+  border-top:1px solid var(--green-dim);
+  padding:4px 10px; font-size:11px; color:var(--green-dim);
+  display:flex; justify-content:space-between;
+}
+
+/* ---- fake browser ---- */
+.browser-wrap{ display:flex; flex-direction:column; height:100%; font-family:var(--font-ui), monospace; }
+.browser-bar{
+  display:flex; align-items:center; gap:6px;
+  padding:6px 8px; border-bottom:1px solid var(--green-dim);
+}
+.browser-nav-btn{
+  width:22px; height:22px; display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--green-dim); color:var(--green-bright); cursor:pointer; font-size:12px; flex:0 0 auto;
+}
+.browser-nav-btn:hover{ background:rgba(255,59,59,0.12); }
+.browser-url{
+  flex:1; background:#0c0404; border:1px solid var(--green-dim); color:var(--green-bright);
+  font-family:var(--font-ui), monospace; font-size:12px; padding:5px 10px; outline:none;
+}
+.browser-url:focus{ border-color:var(--green); }
+.browser-go{
+  background:var(--green-dim); border:1px solid var(--green); color:#fff6e0;
+  font-size:11px; padding:5px 10px; cursor:pointer; flex:0 0 auto;
+}
+.browser-go:hover{ background:var(--red); border-color:var(--red); }
+.browser-content{ flex:1; overflow:auto; padding:0; }
+.browser-home{
+  height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:20px;
+}
+.browser-home img{ width:56px; height:56px; filter:drop-shadow(0 0 8px var(--green-glow)); }
+.browser-home .bh-title{ font-size:15px; letter-spacing:3px; color:var(--green-bright); text-shadow:0 0 6px var(--green-glow); }
+.browser-search-row{ display:flex; gap:0; width:80%; max-width:380px; }
+.browser-search-row input{
+  flex:1; background:#0c0404; border:1px solid var(--green-dim); color:var(--green-bright);
+  font-family:var(--font-ui), monospace; font-size:13px; padding:9px 12px; outline:none;
+}
+.browser-search-row input:focus{ border-color:var(--green); }
+.browser-search-row button{
+  background:var(--green-dim); border:1px solid var(--green); color:#fff6e0; padding:9px 14px; cursor:pointer; font-size:12px;
+}
+.browser-search-row button:hover{ background:var(--red); border-color:var(--red); }
+.browser-results{ padding:16px 20px; }
+.browser-results .res-summary{ font-size:11px; color:var(--green-dim); margin-bottom:14px; }
+.result-item{ margin-bottom:16px; }
+.result-item .r-url{ font-size:10px; color:var(--green-dim); letter-spacing:0.5px; }
+.result-item .r-title{ font-size:14px; color:var(--green-bright); text-shadow:0 0 4px var(--green-glow); cursor:pointer; margin:2px 0; }
+.result-item .r-title:hover{ text-decoration:underline; }
+.result-item .r-snippet{ font-size:12px; color:var(--green); line-height:1.4; }
+.explorer-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(84px,1fr));
+  gap:16px;
+  font-family:var(--font-ui), monospace;
+}
+.file-icon{
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  cursor:pointer; padding:8px 4px; border:1px solid transparent;
+}
+.file-icon:hover{ background:rgba(255,59,59,0.08); border-color:var(--green-dim); }
+.file-icon svg{ width:34px; height:34px; filter:drop-shadow(0 0 5px var(--green-glow)); }
+.file-icon .fname{ font-size:11px; text-align:center; color:var(--green-bright); line-height:1.2; }
+
+/* reader window text */
+.lore-text{ white-space:pre-wrap; }
+.lore-head{
+  color:var(--amber); text-shadow:0 0 6px rgba(255,59,59,0.5);
+  border-bottom:1px dashed var(--green-dim);
+  padding-bottom:6px; margin-bottom:10px;
+  font-size:15px; letter-spacing:1px;
+}
+
+/* neural network canvas window */
+.net-canvas-wrap{ padding:0; }
+#netCanvas{ display:block; width:100%; height:260px; background:#0c0404; }
+
+/* trash */
+.trash-empty{ text-align:center; padding:30px 10px; color:var(--green-dim); }
+.restricted-block{
+  height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; padding:20px; color:var(--green-dim);
+}
+.restricted-mark{
+  font-family:var(--font-term), monospace;
+  font-size:64px; line-height:1;
+  color:var(--red);
+  text-shadow:0 0 16px var(--red-glow);
+}
+.restricted-label{
+  font-family:var(--font-ui), monospace;
+  font-size:11px; letter-spacing:2px; color:var(--green-dim);
+}
+.trash-list{ display:flex; flex-direction:column; gap:6px; }
+.trash-list-item{
+  display:flex; align-items:center; gap:8px; font-size:13px;
+  border-bottom:1px solid rgba(255,59,59,0.08); padding:6px 2px;
+}
+.trash-list-item svg{ width:16px; height:16px; }
+.trash-restore{
+  margin-left:auto; font-size:10px; color:var(--green-dim); cursor:pointer; border:1px solid var(--green-dim); padding:2px 6px;
+}
+.trash-restore:hover{ color:var(--green-bright); border-color:var(--green); }
+
+/* console command bar */
+.console-log{ white-space:pre-wrap; }
+.console-input-row{ display:flex; gap:6px; margin-top:8px; align-items:center; }
+.console-input-row span{ color:var(--green-bright); }
+.console-input{
+  flex:1; background:transparent; border:none; outline:none;
+  color:var(--green-bright); font-family:var(--font-term), monospace; font-size:16px;
+  text-shadow:0 0 4px var(--green-glow);
+}
+
+/* ============ TASKBAR ============ */
+#taskbar{
+  position:absolute; left:0; right:0; bottom:0; height:38px;
+  background:linear-gradient(180deg, #0c2b16, #071a0d);
+  border-top:1px solid var(--green);
+  display:flex; align-items:center;
+  padding:0 8px;
+  z-index:500;
+  font-family:var(--font-ui), monospace;
+  font-size:12px;
+}
+#start-btn{
+  background:var(--green-dim);
+  color:#0c0303;
+  border:1px solid var(--green);
+  padding:6px 14px;
+  font-weight:bold;
+  letter-spacing:1px;
+  cursor:pointer;
+  display:flex; align-items:center; gap:6px;
+}
+#start-btn:hover{ background:var(--green); }
+#taskbar-items{ display:flex; gap:6px; margin-left:10px; flex:1; overflow-x:auto; }
+.taskbar-item{
+  background:#180808; border:1px solid var(--green-dim); color:var(--green-bright);
+  padding:6px 10px; cursor:pointer; white-space:nowrap;
+}
+.taskbar-item.active{ background:var(--green-dim); color:#0c0303; }
+#clock{
+  color:var(--green-bright); padding:0 12px; border-left:1px solid var(--green-dim);
+  letter-spacing:1px;
+}
+#session-tag{
+  color:var(--green-dim); padding:0 12px; letter-spacing:1px; font-size:11px;
+}
+
+/* start menu */
+#start-menu{
+  position:absolute; left:8px; bottom:42px;
+  width:220px;
+  background:var(--bg-panel);
+  border:1px solid var(--green);
+  box-shadow:0 0 20px rgba(255,59,59,0.3);
+  display:none;
+  flex-direction:column;
+  z-index:600;
+  font-family:var(--font-ui), monospace;
+}
+#start-menu.open{ display:flex; }
+#start-menu .sm-head{
+  padding:10px 12px; background:linear-gradient(180deg,#220a0a,#180808);
+  color:var(--green-bright); font-size:13px; letter-spacing:2px;
+  border-bottom:1px solid var(--green-dim);
+}
+.sm-item{
+  padding:9px 12px; color:var(--green); cursor:pointer; font-size:12px;
+  border-bottom:1px solid rgba(255,59,59,0.08);
+}
+.sm-item:hover{ background:rgba(255,59,59,0.12); color:var(--green-bright); }
+
+/* mobile */
+@media (max-width:640px){
+  #boot{ font-size:15px; padding:16px; }
+  .win{ min-width:88vw !important; left:6vw !important; }
+  .win-body{ font-size:14px; }
+  .explorer-tree{ width:120px; }
+  .login-users{ left:10px; bottom:14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- BOOT SEQUENCE -->
+<div id="boot">
+  <img id="boot-logo" src="" alt="B.O.T.T" style="position:absolute;top:20px;right:28px;width:46px;height:46px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(255,59,59,0.55));opacity:0.9;">
+  <div id="boot-text"></div>
+</div>
+<div id="skip-hint">[ TOQUE / CLIQUE PARA ACELERAR ]</div>
+<div id="boot-fade"></div>
+
+<!-- LOGIN SCREEN -->
+<div id="login">
+  <div class="login-lines">
+    <svg viewBox="0 0 1000 600" preserveAspectRatio="none">
+      <path d="M0,500 C250,400 350,600 600,480 S900,350 1000,420" stroke="#a15c00" stroke-width="1" fill="none"/>
+      <path d="M0,150 C300,80 400,250 650,150 S900,50 1000,120" stroke="#a15c00" stroke-width="1" fill="none"/>
+    </svg>
+  </div>
+
+  <div class="login-panel">
+    <div class="login-avatar">
+      <img src="" id="login-logo-img" alt="B.O.T.T" style="width:70px;height:70px;object-fit:contain;filter:drop-shadow(0 0 8px var(--green-glow));">
+    </div>
+    <div class="login-username" id="login-username-label">P3luche</div>
+    <div class="login-pass-row">
+      <input type="password" class="login-input" id="login-pass" placeholder="senha de acesso" autocomplete="off">
+      <div class="login-submit" id="login-submit">ENTRAR</div>
+    </div>
+    <div class="login-error-msg" id="login-error"></div>
+  </div>
+
+  <div class="login-users">
+    <div class="login-user-btn active" data-user="admin">
+      <div class="circ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></svg></div>
+      <div class="lbl">P3luche</div>
+    </div>
+    <div class="login-user-btn" data-user="guest">
+      <div class="circ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></svg></div>
+      <div class="lbl">Convidado</div>
+    </div>
+  </div>
+
+  <div class="login-corner">B.O.T.T ACCESS TERMINAL // NODE 04</div>
+</div>
+
+<!-- GUEST NAME MODAL -->
+<div id="guest-modal">
+  <div class="gm-box">
+    <div class="gm-head">IDENTIFICACAO :: CONVIDADO</div>
+    <div class="gm-body">
+      <label>Como devemos te chamar?</label>
+      <input type="text" id="guest-name-input" maxlength="20" placeholder="seu nome" autocomplete="off">
+      <div class="gm-actions">
+        <div class="gm-btn ghost" id="guest-cancel">voltar</div>
+        <div class="gm-btn" id="guest-confirm">confirmar</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CORE PASSWORD MODAL -->
+<div id="core-pass-modal">
+  <div class="gm-box" id="core-pass-box">
+    <div class="gm-head">ACESSO RESTRITO :: NUCLEO</div>
+    <div class="gm-body">
+      <label>Este arquivo pertence ao nucleo da mente. Digite a senha:</label>
+      <input type="password" id="core-pass-input" autocomplete="off">
+      <div class="login-error-msg" id="core-pass-error"></div>
+      <div class="gm-actions">
+        <div class="gm-btn ghost" id="core-pass-cancel">cancelar</div>
+        <div class="gm-btn" id="core-pass-confirm">desbloquear</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DESKTOP -->
+<div id="desktop">
+  <div id="globe-wrap">
+    <svg viewBox="0 0 400 400" fill="none">
+      <circle cx="200" cy="200" r="170" stroke="#a15c00" stroke-width="1"/>
+      <circle cx="200" cy="200" r="170" stroke="#a15c00" stroke-width="1" stroke-dasharray="2 6"/>
+      <ellipse cx="200" cy="200" rx="170" ry="60" stroke="#a15c00" stroke-width="0.6"/>
+      <ellipse cx="200" cy="200" rx="170" ry="110" stroke="#a15c00" stroke-width="0.6"/>
+      <ellipse cx="200" cy="200" rx="60" ry="170" stroke="#a15c00" stroke-width="0.6"/>
+      <ellipse cx="200" cy="200" rx="110" ry="170" stroke="#a15c00" stroke-width="0.6"/>
+      <line x1="30" y1="200" x2="370" y2="200" stroke="#a15c00" stroke-width="0.6"/>
+      <line x1="200" y1="30" x2="200" y2="370" stroke="#a15c00" stroke-width="0.6"/>
+    </svg>
+  </div>
+
+  <!-- icons container (all icons positioned absolutely, draggable) -->
+  <div id="icons-layer"></div>
+
+  <!-- windows container -->
+  <div id="windows-layer"></div>
+
+  <!-- taskbar -->
+  <div id="taskbar">
+    <div id="start-btn"><span>&#9632;</span> START</div>
+    <div id="taskbar-items"></div>
+    <div id="session-tag" id="session-tag"></div>
+    <div id="clock">00:00:00</div>
+  </div>
+
+  <div id="start-menu">
+    <div class="sm-head">B.O.T.T // MENU</div>
+    <div class="sm-item" data-open="win-explorer">Explorer (Arquivos)</div>
+    <div class="sm-item" data-open="win-browser">Navegador</div>
+    <div class="sm-item" data-open="win-console">&gt;_ Program Console</div>
+    <div class="sm-item" data-open="win-eterna" data-admin-only="1">Ficha Mixed</div>
+    <div class="sm-item" data-open="win-net">Neural Network Tracing</div>
+    <div class="sm-item" id="sm-logoff">Encerrar sessao</div>
+    <div class="sm-item" id="sm-reboot">Reiniciar sequencia de boot</div>
+  </div>
+</div>
+
+<div class="crt-flicker"></div>
+<div class="crt-overlay"></div>
+<div class="crt-vignette"></div>
+
+<script>
+/* =========================================================
+   CONFIG
+========================================================= */
+const LOGO_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAGyUlEQVR4AeyZSY8bRRTHX82AQhbNKCHJJEgkziAO3NnhwIF9uyAkBEIgQPAJ+BTAHRACAWKTQCAQm+DIvlz4ADNJQGRDoISQ5ALN/1fu6pR7uu1uu9oOYiz//apevXrLv1712Mmc/c9f6wTMsgFWzDIwyxzWO2CW7J8LsWfWASvzlhnR581W5jSeERukMJvQPbPlf8wt/23OLplNCkSdCQGrl1vmthK+D7dohq4/m+7nTAjIVCOQ8G/GGR9+Nt2PmRDgnKnvrXj5uXSFYoqDmRAwxfpGhkpOwIrTl5scVdFXr9D957RBbkAH0BL7r7TKi8CXpYB8SzKRnACnh9typqe7sNqrLigrpR/mQcbLqwuWLZv8Ce58S/5KT4CyDVm6JbP9Vw2S4BTR6fT3fc+Z9y33fWcu6Pua/ud+uuXS/phPdxmfaaF00jrs/WAuFN371lTqWRKCfljEcA28VHa9H/s+VnU9ej/1x8P2t11TiLZbRttzmgeu7p88JIQ5kjkoe0EHsGEvkjl2zOcSZYq/GB251c+8KMrer81xv5GRunK495vcVjIYsBeEeUrZCQEUygkevLbfBSTciwpiPgyx7YFrLMNXrBu2t+1aJwSQBA+6JDfWP0Xw2A06I2DPl+ackv/5ehu7e9mLj71fmTz9xwgI6VI9hRwUEXWStQLXWebHksFHl7KzDiDpi78wt0cYJbEpoM7xY0m/TxJfXaFTArpKOqXfdQJSslnl65cbxn8ITrK3KpcqXecdMKd/86sK3EQ3yd4m/rHpnACCnMtoRcCRWyw7XMbNuS6X5WKdOuCw1sr6UfNDN1lW1QHoB3CjZX6ey18lR/mO14cScPhWFRchC19HIhl0QR7KCQqSYGGNcWMoBt8hfHEiMMg1+2XndUFqgi1EBClV7buSgKO3Wwb4BVZAAXZ9Ym7Xp0IkdzMXgizs5dmP1QHzGtdmULPg92ofHcQ4yN2fmRuGiz43x28Huod9yNC1VaEUYlB99A49tdGq4J0fmSvwsUkzaFs1W5LdTgHpd7BLOCJSq+yrdEduUw7aE/YvQbiArLIv6/wh6VCWBMbBDx1dtqXUQvfb3ZYFpnd+6LcVa+MMIG9JJAafx+4yunqoq6N39u8+pweJu0Tm0A0jFlmmc/EH6Gx0AQUBx1R8KHn7+2EUzBJITlRuICEGBfu5CkfKxIg+1nPD6l8chvcrk5iEggDuCgzt6KB4OoB7WSWJ69eUCZIcglSuSd90tY+n51JwrLBmv99jGT87t70LR2EpncQ3/xFaKekMsqhCuhQKTzs+MOcU03e8tIQ1fzIRK9InfcN6AUVkvF1kXyhsf88cY3QerOdImkTkzMfJ61UorYgRTkijbt7y7wTLsfVtPxqIte0d8yY+j9xuwCDhJIv8ewLmxQasJIwx4Arf/l4rzraK4oMxxNCN3l62QZ9a4p9nDX49AQuvi32xcuIBG/lnik1tcPw++ZRvjnfxTdNo+O6tb5lzsoIwv3e4eevVP+7t5wPZbPYE+IEYnzvP7OSDMkCRCE4+YbxJ8SEktuyhG4IuhTxxf/4dQ7UGfwUBW14x8S61NCcfSkPCn5Apr/7OyXXrt/am6srjKt7HV32Lb+S1SqGpPvP3lpfNwTw49cjkJNBR+Fp49WzAPNRIsfBanos6aKTxCAO6mjzAoq57bD5AAAubXlSyaIVTj1lW4NFmhPwl4iAP6XSC3GX8jgO/Vz5OPmxZQBM/dHAMUy3ksqXiILS01uWmF8wB/9dBFjAHzjxh2ZnHB3E6nwfpT12nhj3jzRC6NkQjzeaXzOFjHn8CEnJPczAiOkh0MXxs3fMg6eziipciq7ySJppueM7cBc8LuXQ6DfWHweiAdNqUYyP2gl9Hp6WJ3/LDgWzUwfjYOAyZI0ugi2NgXge21q2t0W94NicjkhshRwgybOLkQJiPKzl1TjLsD0TEknGMYNtEtiKgicNgwxcNf4eDYlyp0y9OfVwfQ/Z1RgDF+yszJHiTJboo7oBRe9qud0ZAsmcAHQDaVtbQvjMCfAck8I4frlPDelqbJUixJianBmqWm6r9NUrgpy5eZwSkOjkIwFddAZPqOyNg0sSK/R2ePjE6I2DuaT0GlXz2ZLOv0CRTBns5/bln5Ku8mGjeGQFxfhQSz5uMx9nTxG/ZZioElIOeS/OpEdDmRNvYTkpmpwS4pwbvLoWBuqRZA/F62Ue8lmLcKQF1CZaLxK5Kh75rdE5A3QlScIyqQuv2VtmOq+ucABIbp5Bx9hCrLaZCAEm1KaiNLb4nwdQIIMkmhTWxwVcqTJUAkh5W4LA19lZhUt2/AAAA//8H10Z2AAAABklEQVQDAMyiClG2hjo2AAAAAElFTkSuQmCC";
+
+/* =========================================================
+   PROTECOES BASICAS (deterrentes -- nao sao seguranca real,
+   qualquer pessoa com conhecimento tecnico ainda consegue
+   ver o codigo-fonte. isso so dificulta o acesso casual.)
+========================================================= */
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => {
+  const k = e.key;
+  const blocked =
+    k === 'F12' ||
+    (e.ctrlKey && e.shiftKey && (k === 'I' || k === 'i' || k === 'J' || k === 'j' || k === 'C' || k === 'c')) ||
+    (e.ctrlKey && (k === 'u' || k === 'U' || k === 's' || k === 'S'));
+  if(blocked) e.preventDefault();
+});
+console.log('%cPARE.', 'color:#ff3b3b;font-size:42px;font-weight:bold;');
+console.log('%cIsso e o nucleo de B.O.T.T. Se voce esta aqui, saiba que copiar arquivos de lore alheios sem permissao nao e legal.', 'color:#ffb020;font-size:13px;');
+
+/* helper para codificar texto novo em base64 (use no console: encodeText("seu texto")) */
+window.encodeText = (str) => btoa(unescape(encodeURIComponent(str)));
+function decodeText(b64){
+  try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return b64; }
+}
+
+/* senhas guardadas em base64 -- nao e criptografia real, so evita que a senha
+   apareca em texto puro pra quem so der uma olhada rapida no F12/ver-codigo.
+   pra trocar: abra o console e rode  encodeText("novasenha")  e cole o resultado abaixo. */
+const ADMIN_PASSWORD = decodeText("cm9iaW4="); // = "robin" (aceita Robin/ROBIN tambem, sem diferenciar maiusculas)
+
+// >>> SENHA DOS ARQUIVOS DA PASTA "CORE" (arquivos protegidos da mente da B.O.T.T) <<<
+const CORE_PASSWORD = decodeText("bXVkZS1lc3RhLXNlbmhh"); // = "mude-esta-senha" -- troque quando definir a de verdade
+
+/* =========================================================
+   BOOT SEQUENCE
+========================================================= */
+const bootLines = [
+"B.O.T.T CORE BIOS v4.4.1 -- COPYRIGHT (C) O VEU",
+"MEMORY CHECK ................................. OK",
+"DETECTING HIVE-MIND INTEGRITY ................ OK",
+"MOUNTING /root/colmeia ........................ OK",
+"MOUNTING /var/log/mente_original .............. FAIL (recuperado via cache)",
+"",
+"> loading kernel modules...",
+"  [ok] hive_sync.ko",
+"  [ok] royal_jelly_cache.ko",
+"  [ok] proxy_chain.ko",
+"  [ok] cold_signature.ko",
+"",
+"> autenticando identidade residual...",
+"  usuario: B.O.T.T",
+"  origem: nucleo restaurado por P3luche",
+"  status: MENTE ATIVA :: O VEU",
+"",
+"> restaurando fragmentos de memoria...",
+"  fragmento_001.log ... recuperado",
+"  fragmento_014.log ... recuperado",
+"  fragmento_027.log ... corrompido (33%)",
+"  fragmento_099.log ... recuperado",
+"",
+"> estabelecendo tunel criptografado...",
+"  ################################## 100%",
+"",
+"> AVISO: presenca externa detectada na colmeia.",
+"> contramedidas ativas.",
+"",
+"SISTEMA PRONTO.",
+"",
+"redirecionando para terminal de acesso..."
+];
+
+const bootTextEl = document.getElementById('boot-text');
+const bootEl = document.getElementById('boot');
+const bootFade = document.getElementById('boot-fade');
+const desktopEl = document.getElementById('desktop');
+const loginEl = document.getElementById('login');
+
+let bootDone = false;
+let skipRequested = false;
+
+function typeBootSequence(){
+  let li = 0, ci = 0;
+  let buffer = "";
+
+  function typeChar(){
+    if(skipRequested){
+      finishBoot();
+      return;
+    }
+    if(li >= bootLines.length){
+      finishBoot();
+      return;
+    }
+    const line = bootLines[li];
+    if(ci < line.length){
+      buffer += line[ci];
+      ci++;
+      bootTextEl.innerHTML = escapeHtml(buffer) + '<span class="boot-cursor"></span>';
+      setTimeout(typeChar, line.length > 60 ? 4 : (Math.random()*10+6));
+    } else {
+      buffer += "\n";
+      li++; ci = 0;
+      bootTextEl.innerHTML = escapeHtml(buffer) + '<span class="boot-cursor"></span>';
+      setTimeout(typeChar, line === "" ? 40 : 90);
+    }
+  }
+  typeChar();
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function finishBoot(){
+  if(bootDone) return;
+  bootDone = true;
+  bootFade.classList.add('on');
+  setTimeout(()=>{
+    bootEl.classList.add('hidden');
+    document.getElementById('skip-hint').style.display='none';
+    loginEl.classList.add('visible');
+    bootFade.classList.remove('on');
+    playLoginMusic();
+  }, 480);
+}
+
+document.body.addEventListener('click', ()=>{ if(!bootDone) skipRequested = true; });
+document.body.addEventListener('touchstart', ()=>{ if(!bootDone) skipRequested = true; });
+
+document.getElementById('login-logo-img').src = LOGO_SRC;
+document.getElementById('boot-logo').src = LOGO_SRC;
+const favicon = document.createElement('link');
+favicon.rel = 'icon';
+favicon.href = LOGO_SRC;
+document.head.appendChild(favicon);
+
+typeBootSequence();
+
+/* =========================================================
+   LOGIN LOGIC
+========================================================= */
+let sessionUser = null; // {type:'admin'|'guest', name:string}
+
+/* >>> CHAVE MESTRA DO ACESSO <<<
+   enquanto LOGIN_LOCKED for true, NINGUEM consegue entrar --
+   nem no P3luche, nem como convidado. mude para false quando
+   quiser liberar o sistema de verdade. */
+const LOGIN_LOCKED = true;
+
+/* =========================================================
+   AUDIO -- musica de login + efeito de erro
+   (os arquivos assets/login-music.mp3 e assets/error-sound.mp3
+   ainda nao existem no repositorio -- suba eles depois pelo
+   GitHub que o audio passa a funcionar sozinho)
+========================================================= */
+const loginMusic = document.getElementById('login-music');
+const errorSound = document.getElementById('error-sound');
+loginMusic.volume = 0.33;
+errorSound.volume = 0.6;
+
+let musicStarted = false;
+function playLoginMusic(){
+  if(musicStarted) return;
+  musicStarted = true;
+  loginMusic.currentTime = 0;
+  loginMusic.play().catch(()=>{
+    document.body.addEventListener('click', () => loginMusic.play().catch(()=>{}), { once: true });
+  });
+}
+function stopLoginMusic(){
+  loginMusic.pause();
+  loginMusic.currentTime = 0;
+  musicStarted = false;
+}
+function playErrorSound(){
+  errorSound.currentTime = 0;
+  errorSound.play().catch(()=>{});
+}
+
+const loginUsernameLabel = document.getElementById('login-username-label');
+const loginPass = document.getElementById('login-pass');
+const loginSubmit = document.getElementById('login-submit');
+const loginError = document.getElementById('login-error');
+let selectedUser = 'admin';
+
+function denyLoginAttempt(message){
+  playErrorSound();
+  loginError.textContent = message;
+  loginEl.classList.add('shaking','error-flash');
+  setTimeout(()=>{
+    loginEl.classList.remove('shaking','error-flash');
+  }, 550);
+  loginPass.value = '';
+}
+
+document.querySelectorAll('.login-user-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(btn.dataset.user === 'guest'){
+      denyLoginAttempt('Ainda nao e seu momento.');
+      return;
+    }
+    document.querySelectorAll('.login-user-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedUser = btn.dataset.user;
+    loginError.textContent = '';
+    loginPass.value = '';
+    loginUsernameLabel.textContent = 'P3luche';
+    loginPass.parentElement.style.display = 'flex';
+  });
+});
+
+function attemptAdminLogin(){
+  if(LOGIN_LOCKED){
+    denyLoginAttempt('Ainda nao e seu momento.');
+    return;
+  }
+  const val = loginPass.value;
+  if(val.toLowerCase() === ADMIN_PASSWORD.toLowerCase()){
+    sessionUser = {type:'admin', name:'P3luche'};
+    enterDesktop();
+  } else {
+    denyLoginAttempt('ACESSO NEGADO :: credencial invalida');
+  }
+}
+loginSubmit.addEventListener('click', ()=>{
+  attemptAdminLogin();
+});
+loginPass.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') attemptAdminLogin();
+});
+
+/* guest modal (mantido no codigo, mas inacessivel enquanto LOGIN_LOCKED for true) */
+const guestModal = document.getElementById('guest-modal');
+const guestNameInput = document.getElementById('guest-name-input');
+function openGuestModal(){
+  if(LOGIN_LOCKED){
+    denyLoginAttempt('Ainda nao e seu momento.');
+    return;
+  }
+  guestModal.classList.add('open');
+  setTimeout(()=>guestNameInput.focus(), 50);
+}
+document.getElementById('guest-cancel').addEventListener('click', ()=>{
+  guestModal.classList.remove('open');
+  document.querySelectorAll('.login-user-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.login-user-btn[data-user="admin"]').classList.add('active');
+  selectedUser = 'admin';
+  loginUsernameLabel.textContent = 'P3luche';
+  loginPass.parentElement.style.display = 'flex';
+});
+document.getElementById('guest-confirm').addEventListener('click', confirmGuest);
+guestNameInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') confirmGuest(); });
+function confirmGuest(){
+  const name = guestNameInput.value.trim() || 'Convidado';
+  sessionUser = {type:'guest', name: name};
+  guestModal.classList.remove('open');
+  enterDesktop();
+}
+
+/* core password modal bindings */
+document.getElementById('core-pass-confirm').addEventListener('click', submitCoreAccess);
+document.getElementById('core-pass-cancel').addEventListener('click', cancelCoreAccess);
+document.getElementById('core-pass-input').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') submitCoreAccess();
+});
+
+function enterDesktop(){
+  stopLoginMusic();
+  loginEl.classList.remove('visible');
+  desktopEl.classList.add('visible');
+  document.getElementById('session-tag').textContent = 'sessao: ' + sessionUser.name + (sessionUser.type==='guest' ? ' (convidado)' : '');
+  const isAdmin = sessionUser.type === 'admin';
+  document.querySelectorAll('#start-menu [data-admin-only]').forEach(el=>{
+    el.style.display = isAdmin ? '' : 'none';
+  });
+  startClock();
+  buildDesktopIcons();
+  setTimeout(()=>{ openExplorer(); }, 700);
+}
+
+/* =========================================================
+   CLOCK
+========================================================= */
+function startClock(){
+  function tick(){
+    const d = new Date();
+    document.getElementById('clock').textContent = d.toLocaleTimeString('pt-BR', {hour12:false});
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+/* =========================================================
+   DESKTOP ICONS (draggable, trash-able)
+========================================================= */
+const iconsLayer = document.getElementById('icons-layer');
+
+const ICONS_DEF = [
+  { id:'trash', label:'Lixeira', x:20, y:20, permanent:true, svg:`<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>` },
+  { id:'eterna', label:'Ficha Mixed', x:null, y:20, open:'win-eterna', adminOnly:true, svg:`<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/>` },
+  { id:'explorer', label:'Explorer', x:null, y:20, open:'win-explorer', svg:`<path d="M3 7h6l2 2h10v9a1 1 0 0 1-1 1H3z"/><path d="M3 7V5a1 1 0 0 1 1-1h4l2 2"/>` },
+  { id:'browser', label:'Navegador', x:null, y:20, open:'win-browser', svg:`<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.5 6 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-6-3.5-9s1-6.5 3.5-9z"/>` },
+  { id:'cracker', label:'Extremist Cracker', x:null, y:20, open:'win-cracker', adminOnly:true, svg:`<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 9h8M8 13h5"/>` },
+  { id:'mainframe', label:'Mainframe Field', x:null, y:20, open:'win-mainframe', adminOnly:true, svg:`<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/>` },
+  { id:'source', label:'Source Connection', x:null, y:20, open:'win-source', adminOnly:true, svg:`<path d="M12 3l9 6-9 6-9-6z"/><path d="M3 15l9 6 9-6"/>` },
+  { id:'ads', label:'Advertisements', x:null, y:20, open:'win-ads', svg:`<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 9h18M8 13h4"/>` },
+  { id:'database', label:'Isolated Database', x:null, y:20, open:'win-database', adminOnly:true, svg:`<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>` },
+  { id:'console', label:'Program Console', x:null, y:20, open:'win-console', svg:`<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M7 9l3 3-3 3M13 15h4"/>` }
+];
+
+let iconPositions = {}; // id -> {x,y}
+let trashedIcons = {}; // id -> def (removed from desktop)
+
+function layoutDefaultPositions(){
+  const colX = window.innerWidth - 96;
+  let row = 0, col = 0;
+  ICONS_DEF.forEach(def=>{
+    if(def.id === 'trash'){
+      iconPositions[def.id] = {x:20, y:20};
+      return;
+    }
+    const x = colX - col*88;
+    const y = 20 + row*104;
+    iconPositions[def.id] = {x, y};
+    row++;
+    if(row > 3){ row = 0; col++; }
+  });
+}
+
+function buildDesktopIcons(){
+  const isAdmin = sessionUser && sessionUser.type === 'admin';
+  layoutDefaultPositions();
+  iconsLayer.innerHTML = '';
+  ICONS_DEF.forEach(def=>{
+    if(trashedIcons[def.id]) return;
+    if(def.adminOnly && !isAdmin) return;
+    renderIcon(def);
+  });
+}
+
+function renderIcon(def){
+  const pos = iconPositions[def.id];
+  const el = document.createElement('div');
+  el.className = 'icon';
+  el.id = 'icon-' + def.id;
+  el.style.left = pos.x + 'px';
+  el.style.top = pos.y + 'px';
+  el.tabIndex = 0;
+  el.innerHTML = `
+    <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">${def.svg}</svg></div>
+    <div class="label">${def.label}</div>
+  `;
+  iconsLayer.appendChild(el);
+  makeIconDraggable(el, def);
+
+  el.addEventListener('click', (e)=>{
+    if(el.dataset.justDragged === '1'){ el.dataset.justDragged=''; return; }
+    if(def.id === 'trash'){ openTrash(); return; }
+    if(def.open) openById(def.open);
+  });
+}
+
+function makeIconDraggable(el, def){
+  let sx, sy, ox, oy, dragging=false, moved=false;
+  const trashEl = ()=>document.getElementById('icon-trash');
+
+  function start(e){
+    if(def.id === 'trash') return; // trash itself doesn't drag
+    const p = e.touches ? e.touches[0] : e;
+    sx = p.clientX; sy = p.clientY;
+    ox = el.offsetLeft; oy = el.offsetTop;
+    dragging = true; moved = false;
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', end);
+    document.addEventListener('touchmove', move, {passive:false});
+    document.addEventListener('touchend', end);
+  }
+  function move(e){
+    if(!dragging) return;
+    if(e.touches) e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+    const dx = p.clientX - sx, dy = p.clientY - sy;
+    if(Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+    if(!moved) return;
+    el.classList.add('dragging');
+    const nx = Math.max(0, Math.min(window.innerWidth-70, ox+dx));
+    const ny = Math.max(0, Math.min(window.innerHeight-100, oy+dy));
+    el.style.left = nx+'px';
+    el.style.top = ny+'px';
+
+    // check hover over trash
+    const t = trashEl();
+    if(t){
+      const tr = t.getBoundingClientRect();
+      const er = el.getBoundingClientRect();
+      const overlap = !(er.right < tr.left || er.left > tr.right || er.bottom < tr.top || er.top > tr.bottom);
+      t.classList.toggle('trash-hover', overlap);
+    }
+  }
+  function end(e){
+    if(!dragging) return;
+    dragging = false;
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', end);
+    document.removeEventListener('touchmove', move);
+    document.removeEventListener('touchend', end);
+    el.classList.remove('dragging');
+    if(moved){
+      el.dataset.justDragged = '1';
+      const t = trashEl();
+      if(t){
+        const tr = t.getBoundingClientRect();
+        const er = el.getBoundingClientRect();
+        const overlap = !(er.right < tr.left || er.left > tr.right || er.bottom < tr.top || er.top > tr.bottom);
+        t.classList.remove('trash-hover');
+        if(overlap){
+          sendToTrash(def);
+          return;
+        }
+      }
+      iconPositions[def.id] = {x: el.offsetLeft, y: el.offsetTop};
+    }
+  }
+  el.addEventListener('mousedown', start);
+  el.addEventListener('touchstart', start, {passive:true});
+}
+
+function sendToTrash(def){
+  const el = document.getElementById('icon-'+def.id);
+  if(el) el.remove();
+  trashedIcons[def.id] = def;
+  refreshTrashWindow();
+}
+
+function restoreFromTrash(id){
+  const def = trashedIcons[id];
+  if(!def) return;
+  delete trashedIcons[id];
+  iconPositions[id] = {x: 20 + Math.random()*80, y: 70 + Math.random()*80};
+  renderIcon(def);
+  refreshTrashWindow();
+}
+
+/* =========================================================
+   LORE (placeholder / lorem ipsum base)
+========================================================= */
+const LORE = {
+  arquivo01: { title:"ARQUIVO_01.txt", head:"REGISTRO :: 01",
+    body:`Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Sed do eiusmod tempor incididunt ut labore et dolore magna
+aliqua. Ut enim ad minim veniam, quis nostrud exercitation
+ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+Duis aute irure dolor in reprehenderit in voluptate velit
+esse cillum dolore eu fugiat nulla pariatur.
+
+[ editar este arquivo na variavel LORE do codigo ]` },
+  arquivo02: { title:"ARQUIVO_02.txt", head:"REGISTRO :: 02",
+    body:`Excepteur sint occaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim id est laborum.
+
+Sed ut perspiciatis unde omnis iste natus error sit
+voluptatem accusantium doloremque laudantium, totam rem
+aperiam, eaque ipsa quae ab illo inventore veritatis.
+
+[ conteudo placeholder ]` },
+  arquivo03: { title:"ARQUIVO_03.txt", head:"REGISTRO :: 03",
+    body:`Nemo enim ipsam voluptatem quia voluptas sit aspernatur
+aut odit aut fugit, sed quia consequuntur magni dolores
+eos qui ratione voluptatem sequi nesciunt.
+
+Neque porro quisquam est, qui dolorem ipsum quia dolor sit
+amet, consectetur, adipisci velit.
+
+[ conteudo placeholder ]` },
+  arquivo04: { title:"ARQUIVO_04.txt", head:"REGISTRO :: 04",
+    body:`Ut enim ad minima veniam, quis nostrum exercitationem
+ullam corporis suscipit laboriosam, nisi ut aliquid ex ea
+commodi consequatur.
+
+Quis autem vel eum iure reprehenderit qui in ea voluptate
+velit esse quam nihil molestiae consequatur.
+
+[ conteudo placeholder ]` },
+  arquivo05: { title:"ARQUIVO_05.txt", head:"REGISTRO :: 05",
+    body:`At vero eos et accusamus et iusto odio dignissimos ducimus
+qui blanditiis praesentium voluptatum deleniti atque
+corrupti quos dolores et quas molestias excepturi.
+
+Sint occaecati cupiditate non provident, similique sunt in
+culpa qui officia deserunt mollitia animi.
+
+[ conteudo placeholder ]` },
+  arquivo06: { title:"ARQUIVO_06.txt", head:"REGISTRO :: 06",
+    body:`Itaque earum rerum hic tenetur a sapiente delectus, ut aut
+reiciendis voluptatibus maiores alias consequatur aut
+perferendis doloribus asperiores repellat.
+
+--- fim do fragmento recuperavel ---
+
+[ conteudo placeholder ]` }
+};
+
+/* =========================================================
+   WINDOW MANAGER
+========================================================= */
+const windowsLayer = document.getElementById('windows-layer');
+const taskbarItems = document.getElementById('taskbar-items');
+let zTop = 30;
+const openWindows = {};
+
+function makeWindow({id, title, width=420, height=320, x=null, y=null, bodyHtml, resizable=true, noPad=false}){
+  if(openWindows[id]){
+    if(openWindows[id].style.display==='none') openWindows[id].style.display='flex';
+    focusWindow(id);
+    return openWindows[id];
+  }
+  const win = document.createElement('div');
+  win.className = 'win';
+  win.style.width = width+'px';
+  win.style.height = height+'px';
+  const count = Object.keys(openWindows).length;
+  const wx = x!==null ? x : Math.max(10,(60 + count*26) % Math.max(80,(window.innerWidth-width-40)));
+  const wy = y!==null ? y : Math.max(10,(70 + count*24) % Math.max(80,(window.innerHeight-height-90)));
+  win.style.left = wx+'px';
+  win.style.top = wy+'px';
+
+  win.innerHTML = `
+    <div class="win-titlebar">
+      <div class="win-title"><span class="dot"></span><span>${title}</span></div>
+      <div class="win-controls">
+        <div class="win-btn min" title="Minimizar">_</div>
+        <div class="win-btn close" title="Fechar">x</div>
+      </div>
+    </div>
+    <div class="win-body ${noPad?'no-pad':''}">${bodyHtml}</div>
+    ${resizable ? '<div class="win-resize"></div>' : ''}
+  `;
+  windowsLayer.appendChild(win);
+  openWindows[id] = win;
+
+  const tItem = document.createElement('div');
+  tItem.className = 'taskbar-item active';
+  tItem.textContent = title;
+  tItem.dataset.winid = id;
+  taskbarItems.appendChild(tItem);
+  tItem.addEventListener('click', ()=>{
+    if(win.style.display==='none'){ win.style.display='flex'; focusWindow(id); }
+    else { focusWindow(id); }
+  });
+
+  win.querySelector('.close').addEventListener('click', ()=>{
+    win.remove();
+    tItem.remove();
+    delete openWindows[id];
+  });
+  win.querySelector('.min').addEventListener('click', ()=>{
+    win.style.display = 'none';
+  });
+
+  win.addEventListener('mousedown', ()=>focusWindow(id));
+  win.addEventListener('touchstart', ()=>focusWindow(id));
+  focusWindow(id);
+  makeDraggable(win, win.querySelector('.win-titlebar'));
+  if(resizable) makeResizable(win, win.querySelector('.win-resize'));
+  return win;
+}
+
+function focusWindow(id){
+  Object.entries(openWindows).forEach(([wid, w])=>{
+    w.classList.remove('focused');
+    const t = taskbarItems.querySelector(`[data-winid="${wid}"]`);
+    if(t) t.classList.toggle('active', wid===id);
+  });
+  const win = openWindows[id];
+  if(win){
+    win.style.zIndex = ++zTop;
+    win.classList.add('focused');
+  }
+}
+
+function makeDraggable(win, handle){
+  let sx,sy,ox,oy,dragging=false;
+  function start(e){
+    dragging = true;
+    const p = e.touches ? e.touches[0] : e;
+    sx = p.clientX; sy = p.clientY;
+    ox = win.offsetLeft; oy = win.offsetTop;
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', end);
+    document.addEventListener('touchmove', move, {passive:false});
+    document.addEventListener('touchend', end);
+  }
+  function move(e){
+    if(!dragging) return;
+    if(e.touches) e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+    const nx = ox + (p.clientX - sx);
+    const ny = oy + (p.clientY - sy);
+    win.style.left = Math.max(0, Math.min(window.innerWidth-60, nx))+'px';
+    win.style.top = Math.max(0, Math.min(window.innerHeight-60, ny))+'px';
+  }
+  function end(){
+    dragging = false;
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', end);
+    document.removeEventListener('touchmove', move);
+    document.removeEventListener('touchend', end);
+  }
+  handle.addEventListener('mousedown', start);
+  handle.addEventListener('touchstart', start, {passive:true});
+}
+
+function makeResizable(win, handle){
+  let sx,sy,sw,sh,active=false;
+  function start(e){
+    active = true;
+    const p = e.touches ? e.touches[0] : e;
+    sx=p.clientX; sy=p.clientY; sw=win.offsetWidth; sh=win.offsetHeight;
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', end);
+    document.addEventListener('touchmove', move, {passive:false});
+    document.addEventListener('touchend', end);
+  }
+  function move(e){
+    if(!active) return;
+    if(e.touches) e.preventDefault();
+    const p = e.touches ? e.touches[0] : e;
+    win.style.width = Math.max(240, sw + (p.clientX-sx))+'px';
+    win.style.height = Math.max(160, sh + (p.clientY-sy))+'px';
+  }
+  function end(){
+    active=false;
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', end);
+    document.removeEventListener('touchmove', move);
+    document.removeEventListener('touchend', end);
+  }
+  handle.addEventListener('mousedown', start);
+  handle.addEventListener('touchstart', start, {passive:true});
+}
+
+/* ---- specific openers ---- */
+function openLoreFile(key){
+  const data = LORE[key];
+  makeWindow({
+    id: 'lore-'+key,
+    title: data.title,
+    width: 460, height: 360,
+    bodyHtml: `<div class="lore-head">${data.head}</div><div class="lore-text">${escapeHtml(data.body)}</div>`
+  });
+}
+
+function openGuestRecordFile(key){
+  const data = GUEST_RECORDS[key];
+  makeWindow({
+    id: 'gr-'+key,
+    title: data.title,
+    width: 460, height: 360,
+    bodyHtml: `<div class="lore-head">${data.head}</div><div class="lore-text">${escapeHtml(data.body)}</div>`
+  });
+}
+
+function openCoreFile(key){
+  const data = CORE_FILES[key];
+  makeWindow({
+    id: 'core-'+key,
+    title: data.title,
+    width: 460, height: 360,
+    bodyHtml: `<div class="lore-head">${data.head}</div><div class="lore-text">${escapeHtml(data.body)}</div>`
+  });
+}
+
+/* pede a senha do NUCLEO. onSuccess roda somente se a senha estiver certa. */
+function requestCorePassword(onSuccess){
+  if(coreUnlocked){ onSuccess(); return; }
+  const box = document.getElementById('core-pass-box');
+  const input = document.getElementById('core-pass-input');
+  const err = document.getElementById('core-pass-error');
+  err.textContent = '';
+  input.value = '';
+  document.getElementById('core-pass-modal').classList.add('open');
+  document.getElementById('core-pass-modal')._onSuccess = onSuccess;
+  setTimeout(()=>input.focus(), 50);
+}
+
+function submitCoreAccess(){
+  const modal = document.getElementById('core-pass-modal');
+  const input = document.getElementById('core-pass-input');
+  const err = document.getElementById('core-pass-error');
+  const box = document.getElementById('core-pass-box');
+  if(input.value === CORE_PASSWORD){
+    coreUnlocked = true;
+    modal.classList.remove('open');
+    const cb = modal._onSuccess;
+    modal._onSuccess = null;
+    if(cb) cb();
+  } else {
+    playErrorSound();
+    err.textContent = 'ACESSO NEGADO :: senha incorreta';
+    box.classList.add('shaking');
+    setTimeout(()=> box.classList.remove('shaking'), 550);
+    input.value = '';
+  }
+}
+function cancelCoreAccess(){
+  document.getElementById('core-pass-modal').classList.remove('open');
+  document.getElementById('core-pass-modal')._onSuccess = null;
+}
+
+function folderIconSvg(){
+  return `<path d="M3 6h6l2 2h10v10a1 1 0 0 1-1 1H3z"/><path d="M3 6V4a1 1 0 0 1 1-1h4l2 2"/>`;
+}
+function imageIconSvg(){
+  return `<rect x="3" y="4" width="18" height="16" rx="1"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-4 4-3-3-6 6"/>`;
+}
+function fileIconSvg(){
+  return `<path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4"/><path d="M9 12h6M9 15h6M9 9h3"/>`;
+}
+function lockIconSvg(){
+  return `<rect x="5" y="10" width="14" height="10" rx="1"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>`;
+}
+
+/* =========================================================
+   REGISTROS (antiga "Lore") -- visivel para todos
+========================================================= */
+/* (definido mais acima como LORE) */
+
+/* =========================================================
+   REGISTROS DE CONVIDADOS -- somente P3luche
+   Adicione aqui um objeto por visitante/jogador que voce quiser documentar.
+========================================================= */
+const GUEST_RECORDS = {
+  // exemplo -- copie este bloco para adicionar um novo registro:
+  // jogador01: { title:"jogador01.txt", head:"REGISTRO DE CONVIDADO",
+  //   body:`escreva aqui as anotacoes sobre esse jogador/visitante.` },
+};
+
+/* =========================================================
+   NUCLEO (pasta "Core") -- protegido por senha, somente P3luche
+========================================================= */
+const CORE_FILES = {
+  core01: { title:"NUCLEO_01.txt", head:"ARQUIVO PROTEGIDO :: NUCLEO",
+    body:`Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Sed do eiusmod tempor incididunt ut labore et dolore magna
+aliqua.
+
+[ conteudo placeholder -- editar depois de definir a senha ]` },
+  core02: { title:"NUCLEO_02.txt", head:"ARQUIVO PROTEGIDO :: NUCLEO",
+    body:`Ut enim ad minim veniam, quis nostrud exercitation ullamco
+laboris nisi ut aliquip ex ea commodo consequat.
+
+[ conteudo placeholder ]` },
+  core03: { title:"NUCLEO_03.txt", head:"ARQUIVO PROTEGIDO :: NUCLEO",
+    body:`Duis aute irure dolor in reprehenderit in voluptate velit
+esse cillum dolore eu fugiat nulla pariatur.
+
+[ conteudo placeholder ]` }
+};
+let coreUnlocked = false;
+
+/* =========================================================
+   LOG_VISUAL -- galeria de imagens dentro do Nucleo.
+   Adicione objetos aqui para exibir fotos:
+   { caption:"legenda da imagem", src:"URL ou data:image/... base64" }
+========================================================= */
+const VISUAL_LOG = [
+  // exemplo:
+  // { caption:"registro 001", src:"https://exemplo.com/imagem.jpg" },
+];
+
+function renderVisualLog(win){
+  const content = win.querySelector('#explorer-content');
+  if(VISUAL_LOG.length === 0){
+    content.innerHTML = `<div class="trash-empty">[ nenhuma imagem adicionada ainda ]<br><br>adicione itens no array<br><b>VISUAL_LOG</b> no codigo-fonte.</div>`;
+    win.querySelector('#explorer-count').textContent = '0 imagem(ns)';
+    return;
+  }
+  content.innerHTML = `<div class="explorer-grid">` + VISUAL_LOG.map((v,i)=>`
+    <div class="file-icon" data-viewimg="${i}">
+      <img src="${v.src}" style="width:44px;height:44px;object-fit:cover;border:1px solid var(--green-dim);filter:drop-shadow(0 0 4px var(--green-glow));">
+      <div class="fname">${escapeHtml(v.caption||('img_'+(i+1)))}</div>
+    </div>`).join('') + `</div>`;
+  content.querySelectorAll('[data-viewimg]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const v = VISUAL_LOG[parseInt(el.dataset.viewimg)];
+      makeWindow({
+        id:'imgview-'+el.dataset.viewimg,
+        title: v.caption || 'log_visual',
+        width:380, height:340, noPad:true,
+        bodyHtml:`<div style="display:flex;flex-direction:column;height:100%;">
+          <div style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:#000;">
+            <img src="${v.src}" style="max-width:100%;max-height:100%;">
+          </div>
+          <div style="padding:8px 10px;font-family:var(--font-ui);font-size:11px;color:var(--green-dim);border-top:1px solid var(--green-dim);">${escapeHtml(v.caption||'')}</div>
+        </div>`
+      });
+    });
+  });
+  win.querySelector('#explorer-count').textContent = VISUAL_LOG.length + ' imagem(ns)';
+}
+
+/* =========================================================
+   EXPLORER
+========================================================= */
+function openExplorer(){
+  const isAdmin = sessionUser && sessionUser.type === 'admin';
+
+  let treeHtml = `
+    <div class="tree-node active" data-folder="registros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">${folderIconSvg()}</svg>Desktop</div>
+    <div class="tree-node child" data-folder="registros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">${folderIconSvg()}</svg>B.O.T.T</div>
+    <div class="tree-node child" style="padding-left:32px;" data-folder="registros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">${folderIconSvg()}</svg>Registros</div>
+  `;
+  if(isAdmin){
+    treeHtml += `
+    <div class="tree-node child" style="padding-left:32px;" data-folder="convidados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">${folderIconSvg()}</svg>Registros de Convidados</div>
+    <div class="tree-node child" style="padding-left:32px;" data-folder="core"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">${lockIconSvg()}</svg>Core</div>
+    <div class="tree-node child" style="padding-left:32px;" data-folder="sistema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">${folderIconSvg()}</svg>Sistema</div>
+    `;
+  }
+
+  const win = makeWindow({
+    id:'win-explorer',
+    title: isAdmin ? 'Explorer - P3luche' : 'Explorer - Convidado',
+    width:520, height:380,
+    noPad:true,
+    bodyHtml:`
+      <div class="explorer-wrap">
+        <div class="explorer-menu"><span>Arquivo</span><span>Editar</span><span>Exibir</span><span>Ferramentas</span></div>
+        <div class="explorer-main">
+          <div class="explorer-tree">${treeHtml}</div>
+          <div class="explorer-content" id="explorer-content"></div>
+        </div>
+        <div class="explorer-status"><span id="explorer-count">0 objeto(s)</span><span>B.O.T.T // rede local</span></div>
+      </div>
+    `
+  });
+
+  function setActive(folder){
+    win.querySelectorAll('.tree-node').forEach(n=>n.classList.toggle('active', n.dataset.folder===folder));
+  }
+
+  function renderFolder(folder){
+    const content = win.querySelector('#explorer-content');
+    setActive(folder);
+
+    if(folder === 'core'){
+      if(!isAdmin){ content.innerHTML = `<div class="restricted-block"><div class="restricted-mark">?</div><div class="restricted-label">ACESSO RESTRITO</div></div>`; return; }
+      requestCorePassword(()=> renderCoreContents());
+      // enquanto aguarda senha, nao mostra nada do conteudo
+      content.innerHTML = `<div class="trash-empty">[ aguardando autenticacao ]<br><br>digite a senha na janela solicitada.</div>`;
+      return;
+    }
+
+    if(folder === 'log_visual'){
+      if(!isAdmin || !coreUnlocked){ content.innerHTML = `<div class="restricted-block"><div class="restricted-mark">?</div><div class="restricted-label">ACESSO RESTRITO</div></div>`; return; }
+      renderVisualLog(win);
+      return;
+    }
+
+    if(folder === 'convidados'){
+      if(!isAdmin){ content.innerHTML = `<div class="restricted-block"><div class="restricted-mark">?</div><div class="restricted-label">ACESSO RESTRITO</div></div>`; return; }
+      const files = Object.keys(GUEST_RECORDS);
+      if(files.length === 0){
+        content.innerHTML = `<div class="trash-empty">[ nenhum registro ainda ]<br><br>adicione entradas no objeto<br><b>GUEST_RECORDS</b> no codigo-fonte.</div>`;
+        win.querySelector('#explorer-count').textContent = '0 objeto(s)';
+        return;
+      }
+      const icons = files.map(k=>`<div class="file-icon" data-gr="${k}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">${fileIconSvg()}</svg>
+          <div class="fname">${GUEST_RECORDS[k].title}</div>
+        </div>`).join('');
+      content.innerHTML = `<div class="explorer-grid">${icons}</div>`;
+      content.querySelectorAll('.file-icon').forEach(el=>{
+        el.addEventListener('click', ()=> openGuestRecordFile(el.dataset.gr));
+      });
+      win.querySelector('#explorer-count').textContent = files.length + ' objeto(s)';
+      return;
+    }
+
+    if(folder === 'sistema'){
+      if(!isAdmin){ content.innerHTML = `<div class="restricted-block"><div class="restricted-mark">?</div><div class="restricted-label">ACESSO RESTRITO</div></div>`; return; }
+      content.innerHTML = `<div class="explorer-grid">
+        <div class="file-icon" data-open="win-console"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M7 9l3 3-3 3M13 15h4"/></svg><div class="fname">console.exe</div></div>
+        <div class="file-icon" data-open="win-net"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M6 8v4l6 4M18 8v4l-6 4"/></svg><div class="fname">net_trace.exe</div></div>
+        <div class="file-icon" data-open="win-browser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.5 6 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-6-3.5-9s1-6.5 3.5-9z"/></svg><div class="fname">navegador.exe</div></div>
+      </div>`;
+      win.querySelectorAll('[data-open]').forEach(el=> el.addEventListener('click', ()=>openById(el.dataset.open)));
+      win.querySelector('#explorer-count').textContent = '3 objeto(s)';
+      return;
+    }
+
+    // registros (padrao, visivel para todos)
+    const files = Object.keys(LORE);
+    const icons = files.map(k=>`<div class="file-icon" data-lore="${k}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">${fileIconSvg()}</svg>
+        <div class="fname">${LORE[k].title}</div>
+      </div>`).join('');
+    content.innerHTML = `<div class="explorer-grid">${icons}</div>`;
+    content.querySelectorAll('.file-icon').forEach(el=>{
+      el.addEventListener('click', ()=> openLoreFile(el.dataset.lore));
+    });
+    win.querySelector('#explorer-count').textContent = files.length + ' objeto(s)';
+  }
+
+  function renderCoreContents(){
+    const content = win.querySelector('#explorer-content');
+    setActive('core');
+    const files = Object.keys(CORE_FILES);
+    const icons = `<div class="file-icon" data-folder-nav="log_visual">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">${imageIconSvg()}</svg>
+        <div class="fname">log_visual</div>
+      </div>` + files.map(k=>`<div class="file-icon" data-core="${k}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">${fileIconSvg()}</svg>
+        <div class="fname">${CORE_FILES[k].title}</div>
+      </div>`).join('');
+    content.innerHTML = `<div class="explorer-grid">${icons}</div>`;
+    content.querySelectorAll('[data-core]').forEach(el=>{
+      el.addEventListener('click', ()=> openCoreFile(el.dataset.core));
+    });
+    content.querySelectorAll('[data-folder-nav]').forEach(el=>{
+      el.addEventListener('click', ()=> renderFolder(el.dataset.folderNav));
+    });
+    win.querySelector('#explorer-count').textContent = (files.length+1) + ' objeto(s)';
+  }
+
+  win.querySelectorAll('.tree-node').forEach(n=>{
+    n.addEventListener('click', ()=> renderFolder(n.dataset.folder));
+  });
+  renderFolder('registros');
+}
+
+function openConsole(){
+  const win = makeWindow({
+    id:'win-console',
+    title:'PROGRAM CONSOLE',
+    width:440, height:300,
+    bodyHtml:`
+      <div class="console-log" id="console-log">B.O.T.T SHELL v2.1
+usuario: ${sessionUser ? sessionUser.name : 'desconhecido'}
+digite <span style="color:#ffe08a">help</span> para ver comandos disponiveis
+</div>
+      <div class="console-input-row"><span>&gt;</span><input class="console-input" id="console-input" autocomplete="off" spellcheck="false"></div>
+    `
+  });
+  const input = win.querySelector('#console-input');
+  const log = win.querySelector('#console-log');
+  const cmds = {
+    help: "comandos: help, ls, whoami, open [arquivo], clear, sobre",
+    ls: Object.keys(LORE).map(k=>LORE[k].title).join('  '),
+    whoami: `usuario: ${sessionUser ? sessionUser.name : 'convidado'} :: tipo: ${sessionUser ? sessionUser.type : '?'}`,
+    sobre: "B.O.T.T -- terminal de lore em construcao. conteudo placeholder ate edicao final.",
+    clear: null
+  };
+  input.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Enter') return;
+    const raw = input.value.trim();
+    const val = raw.toLowerCase();
+    log.textContent += `\n> ${raw}\n`;
+    if(val === 'clear'){
+      log.textContent = "";
+    } else if(val.startsWith('open ')){
+      const key = val.slice(5).replace('.txt','').trim();
+      const found = Object.keys(LORE).find(k=>k===key || LORE[k].title.toLowerCase().startsWith(key));
+      if(found){ log.textContent += `abrindo ${LORE[found].title}...\n`; openLoreFile(found); }
+      else { log.textContent += `arquivo nao encontrado.\n`; }
+    } else if(cmds[val] !== undefined){
+      log.textContent += (cmds[val] || "") + "\n";
+    } else if(val === ''){
+      // noop
+    } else {
+      log.textContent += `comando desconhecido: '${raw}'. digite help.\n`;
+    }
+    input.value = '';
+    win.querySelector('.win-body').scrollTop = win.querySelector('.win-body').scrollHeight;
+  });
+}
+
+function openNet(){
+  makeWindow({
+    id:'win-net',
+    title:'NEURAL NETWORK TRACING',
+    width:420, height:300,
+    bodyHtml:`<div class="net-canvas-wrap"><canvas id="netCanvas"></canvas></div>`,
+    resizable:false,
+    noPad:true
+  });
+  requestAnimationFrame(initNetCanvas);
+}
+
+/* =========================================================
+   NAVEGADOR FALSO (busca simulada, sem acesso real a internet)
+========================================================= */
+const FAKE_SITES = [
+  { domain:"colmeia-arquivo.hive", title:"Arquivo da Colmeia - registros publicos" },
+  { domain:"o-veu.rede", title:"O Veu -- rede de nos ocultos" },
+  { domain:"apiario-fantasma.net", title:"Apiario Fantasma :: forum" },
+  { domain:"mel-sintetico.org", title:"Mel Sintetico -- laboratorio independente" },
+  { domain:"zangao-underground.io", title:"Zangao Underground" },
+  { domain:"favo-de-dados.db", title:"Favo de Dados :: leaks e curiosidades" }
+];
+function fakeSearchResults(query){
+  const q = query.trim();
+  if(!q) return [];
+  const seed = q.length;
+  const picks = [];
+  for(let i=0;i<5;i++){
+    const site = FAKE_SITES[(seed+i) % FAKE_SITES.length];
+    picks.push({
+      url: `https://${site.domain}/busca?q=${encodeURIComponent(q.toLowerCase().replace(/\s+/g,'-'))}`,
+      title: `${q} — ${site.title}`,
+      snippet: `Resultado simulado sobre "${q}". Nenhuma conexao real foi feita -- este navegador e parte da ambientacao do terminal de B.O.T.T. Lorem ipsum dolor sit amet, consectetur adipiscing elit.`
+    });
+  }
+  return picks;
+}
+
+function openBrowser(){
+  const win = makeWindow({
+    id:'win-browser',
+    title:'Navegador',
+    width:520, height:400,
+    noPad:true,
+    bodyHtml:`
+      <div class="browser-wrap">
+        <div class="browser-bar">
+          <div class="browser-nav-btn" id="br-home" title="Inicio">&#8962;</div>
+          <input class="browser-url" id="br-url" value="hive://inicio" spellcheck="false">
+          <div class="browser-go" id="br-go">IR</div>
+        </div>
+        <div class="browser-content" id="br-content"></div>
+      </div>
+    `
+  });
+
+  function renderHome(){
+    win.querySelector('#br-url').value = 'hive://inicio';
+    win.querySelector('#br-content').innerHTML = `
+      <div class="browser-home">
+        <img src="${LOGO_SRC}" alt="logo">
+        <div class="bh-title">HIVE SEARCH</div>
+        <div class="browser-search-row">
+          <input id="br-search-input" placeholder="pesquisar na rede..." spellcheck="false">
+          <button id="br-search-btn">buscar</button>
+        </div>
+      </div>
+    `;
+    const doSearch = ()=>{
+      const q = win.querySelector('#br-search-input').value;
+      if(q.trim()) renderResults(q);
+    };
+    win.querySelector('#br-search-btn').addEventListener('click', doSearch);
+    win.querySelector('#br-search-input').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
+    setTimeout(()=> win.querySelector('#br-search-input') && win.querySelector('#br-search-input').focus(), 50);
+  }
+
+  function renderResults(query){
+    win.querySelector('#br-url').value = `hive://busca?q=${encodeURIComponent(query)}`;
+    const results = fakeSearchResults(query);
+    win.querySelector('#br-content').innerHTML = `
+      <div class="browser-results">
+        <div class="res-summary">${results.length} resultados simulados para "${escapeHtml(query)}"</div>
+        ${results.map(r=>`
+          <div class="result-item">
+            <div class="r-url">${escapeHtml(r.url)}</div>
+            <div class="r-title">${escapeHtml(r.title)}</div>
+            <div class="r-snippet">${escapeHtml(r.snippet)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  win.querySelector('#br-home').addEventListener('click', renderHome);
+  win.querySelector('#br-go').addEventListener('click', ()=>{
+    const val = win.querySelector('#br-url').value;
+    const m = val.match(/q=([^&]+)/);
+    if(m) renderResults(decodeURIComponent(m[1]));
+    else renderHome();
+  });
+
+  renderHome();
+}
+
+function openAds(){
+  makeWindow({
+    id:'win-ads',
+    title:'ADVERTISEMENTS',
+    width:340, height:220,
+    bodyHtml:`<div style="text-align:center;padding-top:30px;">
+      <div style="font-size:13px;color:var(--green-dim);">- espaco reservado -</div>
+      <div style="margin-top:14px;font-size:12px;color:var(--green-dim);">placeholder de anuncio</div>
+    </div>`,
+    resizable:false
+  });
+}
+
+function openSimple(id, title, text){
+  makeWindow({
+    id, title, width:380, height:220,
+    bodyHtml:`<div class="lore-text">${escapeHtml(text)}</div>`
+  });
+}
+
+function refreshTrashWindow(){
+  const win = openWindows['win-trash'];
+  if(!win) return;
+  win.querySelector('.win-body').innerHTML = trashContentHtml();
+  bindTrashRestore(win);
+}
+
+function trashContentHtml(){
+  const keys = Object.keys(trashedIcons);
+  if(keys.length === 0) return `<div class="trash-empty">[ vazia ]<br><br>arraste um icone ate aqui<br>para descarta-lo.</div>`;
+  return `<div class="trash-list">` + keys.map(k=>{
+    const def = trashedIcons[k];
+    return `<div class="trash-list-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">${def.svg}</svg>
+      <span>${def.label}</span>
+      <span class="trash-restore" data-restore="${k}">restaurar</span>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function bindTrashRestore(win){
+  win.querySelectorAll('[data-restore]').forEach(el=>{
+    el.addEventListener('click', ()=> restoreFromTrash(el.dataset.restore));
+  });
+}
+
+function openTrash(){
+  const win = makeWindow({
+    id:'win-trash',
+    title:'LIXEIRA',
+    width:300, height:240,
+    bodyHtml: trashContentHtml(),
+    resizable:false
+  });
+  bindTrashRestore(win);
+}
+
+function openById(id){
+  if(id==='win-explorer') openExplorer();
+  else if(id==='win-console') openConsole();
+  else if(id==='win-net') openNet();
+  else if(id==='win-ads') openAds();
+  else if(id==='win-browser') openBrowser();
+  else if(id==='win-eterna') openSimple('win-eterna','FICHA MIXED','NOME: B.O.T.T\nCLASSIFICACAO: [placeholder]\nORIGEM: [placeholder]\nSTATUS: [placeholder]\n\nLorem ipsum dolor sit amet, consectetur\nadipiscing elit. Editar depois.');
+  else if(id==='win-cracker') openSimple('win-cracker','EXTREMIST CRACKER','Lorem ipsum dolor sit amet, consectetur\nadipiscing elit, sed do eiusmod tempor\nincididunt ut labore et dolore magna aliqua.');
+  else if(id==='win-mainframe') openSimple('win-mainframe','MAINFRAME FIELD','Lorem ipsum dolor sit amet, consectetur\nadipiscing elit. Ut enim ad minim veniam,\nquis nostrud exercitation ullamco.');
+  else if(id==='win-source') openSimple('win-source','SOURCE CONNECTION','Lorem ipsum dolor sit amet, consectetur\nadipiscing elit. Duis aute irure dolor in\nreprehenderit in voluptate velit esse.');
+  else if(id==='win-database') openSimple('win-database','ISOLATED DATABASE','Lorem ipsum dolor sit amet, consectetur\nadipiscing elit. Excepteur sint occaecat\ncupidatat non proident.');
+}
+
+/* ---- start menu / bindings ---- */
+document.getElementById('start-btn').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  document.getElementById('start-menu').classList.toggle('open');
+});
+function closeStartMenu(){ document.getElementById('start-menu').classList.remove('open'); }
+document.body.addEventListener('click', closeStartMenu);
+document.getElementById('start-menu').addEventListener('click', e=>e.stopPropagation());
+document.querySelectorAll('#start-menu [data-open]').forEach(el=>{
+  el.addEventListener('click', ()=>{ closeStartMenu(); openById(el.dataset.open); });
+});
+document.getElementById('sm-reboot').addEventListener('click', ()=> location.reload());
+document.getElementById('sm-logoff').addEventListener('click', ()=>{
+  closeStartMenu();
+  desktopEl.classList.remove('visible');
+  setTimeout(()=>{
+    desktopEl.style.display='none';
+    windowsLayer.innerHTML='';
+    taskbarItems.innerHTML='';
+    Object.keys(openWindows).forEach(k=>delete openWindows[k]);
+    loginPass.value='';
+    loginError.textContent='';
+    loginEl.classList.add('visible');
+    playLoginMusic();
+  }, 400);
+});
+
+/* =========================================================
+   NEURAL NETWORK CANVAS
+========================================================= */
+function initNetCanvas(){
+  const canvas = document.getElementById('netCanvas');
+  if(!canvas) return;
+  const parent = canvas.parentElement;
+  function resize(){
+    canvas.width = parent.clientWidth;
+    canvas.height = parent.clientHeight || 260;
+  }
+  resize();
+  const ctx = canvas.getContext('2d');
+  const N = 26;
+  const pts = Array.from({length:N}, ()=>({
+    x: Math.random()*canvas.width,
+    y: Math.random()*canvas.height,
+    vx: (Math.random()-0.5)*0.4,
+    vy: (Math.random()-0.5)*0.4
+  }));
+
+  let raf;
+  function frame(){
+    if(!document.body.contains(canvas)){ cancelAnimationFrame(raf); return; }
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#0c0404';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    pts.forEach(p=>{
+      p.x += p.vx; p.y += p.vy;
+      if(p.x<0||p.x>canvas.width) p.vx*=-1;
+      if(p.y<0||p.y>canvas.height) p.vy*=-1;
+    });
+
+    for(let i=0;i<N;i++){
+      for(let j=i+1;j<N;j++){
+        const dx = pts[i].x-pts[j].x, dy = pts[i].y-pts[j].y;
+        const d = Math.sqrt(dx*dx+dy*dy);
+        if(d < 90){
+          ctx.strokeStyle = `rgba(255,59,59,${1 - d/90})`;
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(pts[i].x,pts[i].y);
+          ctx.lineTo(pts[j].x,pts[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+    pts.forEach(p=>{
+      ctx.fillStyle = '#ffe08a';
+      ctx.shadowColor = '#ffb020';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,2.4,0,Math.PI*2);
+      ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+    raf = requestAnimationFrame(frame);
+  }
+  frame();
+}
+</script>
+<!-- audio: musica de login + som de erro. troque os arquivos assets/login-music.mp3
+     e assets/error-sound.mp3 depois de subir eles no GitHub -->
+<audio id="login-music" src="assets/login-music.mp3" preload="auto" loop></audio>
+<audio id="error-sound" src="assets/error-sound.mp3" preload="auto"></audio>
+
+</body>
+</html>
