@@ -1930,6 +1930,36 @@ function initNetCanvas(){
   }
   frame();
 }
+  <audio id="login-music" src="assets/login-music.mp3" preload="auto" loop></audio>
+<audio id="error-sound" src="assets/error-sound.mp3" preload="auto"></audio>
+  /* =========================================================
+   AUDIO -- musica de login + efeito de erro
+========================================================= */
+const loginMusic = document.getElementById('login-music');
+const errorSound = document.getElementById('error-sound');
+
+loginMusic.volume = 0.3; // 30% de volume, como pedido
+errorSound.volume = 0.6; // pode ajustar o volume do efeito de erro aqui
+
+let musicStarted = false;
+function playLoginMusic(){
+  if(musicStarted) return;
+  musicStarted = true;
+  loginMusic.currentTime = 0;
+  loginMusic.play().catch(()=>{
+    // se o navegador bloquear autoplay, tenta de novo no primeiro clique
+    document.body.addEventListener('click', () => loginMusic.play(), { once: true });
+  });
+}
+function stopLoginMusic(){
+  loginMusic.pause();
+  loginMusic.currentTime = 0;
+  musicStarted = false;
+}
+function playErrorSound(){
+  errorSound.currentTime = 0;
+  errorSound.play().catch(()=>{});
+}
 </script>
 </body>
 </html>
